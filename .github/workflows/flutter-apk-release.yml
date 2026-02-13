@@ -1,0 +1,51 @@
+name: Flutter APK Release
+
+on:
+  push:
+    tags:
+      - '**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build APK on Linux
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Cache Pub Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+      - uses: kuhnroyal/flutter-fvm-config-action@v2
+        id: fvm-config-action
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm-config-action.outputs.FLUTTER_VERSION }}
+          channel: ${{ steps.fvm-config-action.outputs.FLUTTER_CHANNEL }}
+          cache: true
+      - name: Flutter Doctor
+        run: make doctor
+      - name: Create GitHub Release
+        run: gh release create -p --generate-notes --target $GITHUB_SHA $GITHUB_REF_NAME || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build APK
+        run: make android_apk
+      - name: Upload APKs to GitHub Releases
+        run: |
+          gh release upload $GITHUB_REF_NAME build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+          gh release upload $GITHUB_REF_NAME build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          gh release upload $GITHUB_REF_NAME build/app/outputs/flutter-apk/app-x86_64-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

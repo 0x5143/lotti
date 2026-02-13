@@ -215,6 +215,10 @@ macos_local: macos_build
 android_build:
 	$(FLUTTER_CMD) build appbundle
 
+.PHONY: android_apk
+android_apk:
+	$(FLUTTER_CMD) build apk --split-per-abi
+
 .PHONY: linux_build
 linux_build:
 	$(FLUTTER_CMD) build linux
